@@ -1,31 +1,46 @@
-name: Android CI
+name: Find and Build APK
 
 on:
   push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+    branches: [ "master" ]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: set up JDK 11
-      uses: actions/setup-java@v1
-      with:
-        java-version: 11
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    - name: Build with Gradle
-      run: ./gradlew build
-    - name: Unit Test
-      run: ./gradlew test
-    - name: Upload APK
-      uses: actions/upload-artifact@v2
-      with:
-        name: app
-        path: app/build/outputs/apk/beta/debug/*.apk
     
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Create local.properties
+      run: |
+        echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+    - name: Make gradlew executable
+      run: chmod +x ./gradlew
+
+    - name: Build the project
+      run: ./gradlew assembleDebug --stacktrace
+
+    - name: SEARCH FOR APK FILES
+      run: |
+        echo "=== LISTING ALL APK FILES ==="
+        find . -name "*.apk" -type f
+        echo "=== BUILD OUTPUTS STRUCTURE ==="
+        find . -path "*/build/outputs/*" -type f | head -20
+
+    - name: Upload ANY APK found
+      uses: actions/upload-artifact@v4
+      with:
+        name: built-apk-file
+        path: "**/*.apk"
+        if-no-files-found: error
