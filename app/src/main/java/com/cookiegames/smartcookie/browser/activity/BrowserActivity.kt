@@ -78,6 +78,12 @@ import com.cookiegames.smartcookie.html.history.HistoryPageFactory
 import com.cookiegames.smartcookie.html.homepage.HomePageFactory
 import com.cookiegames.smartcookie.html.incognito.IncognitoPageFactory
 import com.cookiegames.smartcookie.icon.TabCountView
+import com.startapp.sdk.adsbase.StartAppAd
+import com.startapp.sdk.adsbase.StartAppSDK
+import com.startapp.sdk.adsbase.adlisteners.AdEventListener
+import com.startapp.sdk.adsbase.adlisteners.VideoListener
+import com.startapp.sdk.adsbase.model.AdPreferences
+import android.widget.Toast
 import com.cookiegames.smartcookie.interpolator.BezierDecelerateInterpolator
 import com.cookiegames.smartcookie.log.Logger
 import com.cookiegames.smartcookie.notifications.IncognitoNotification
@@ -106,6 +112,11 @@ import kotlin.system.exitProcess
 
 
 abstract class BrowserActivity : ThemableBrowserActivity(), BrowserView, UIController, OnClickListener, OnKeyboardVisibilityListener {
+
+    // Start.io Rewarded Ad
+    private var rewardedAd: StartAppAd? = null
+    private var adReady: Boolean = false
+    private var pendingUrl: String? = null
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var toolbarBinding: ToolbarContentBinding
@@ -272,6 +283,12 @@ abstract class BrowserActivity : ThemableBrowserActivity(), BrowserView, UIContr
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         injector.inject(this)
+
+        // Initialize Start.io SDK
+        StartAppSDK.init(this, "209257251", false)
+        StartAppAd.disableSplash() // We only want rewarded ads
+        rewardedAd = StartAppAd(this)
+        loadRewardedAd()
 
         // TODO: add back bottom bar support
         /*if (userPreferences.bottomBar) {
@@ -755,6 +772,38 @@ abstract class BrowserActivity : ThemableBrowserActivity(), BrowserView, UIContr
         val currentView = tabsManager.currentTab
         val extraBar = findViewById<BottomNavigationView>(R.id.bottom_navigation)
 
+        // Preload rewarded ad on preferences init
+        loadRewardedAd()
+    // Load a Start.io rewarded ad
+    private fun loadRewardedAd() {
+        adReady = false
+        rewardedAd?.loadAd(StartAppAd.AdMode.REWARDED_VIDEO, object : AdEventListener {
+            override fun onReceiveAd(ad: com.startapp.sdk.adsbase.Ad) {
+                adReady = true
+            }
+            override fun onFailedToReceiveAd(ad: com.startapp.sdk.adsbase.Ad) {
+                adReady = false
+            }
+        })
+    }
+
+    // Show rewarded ad and run callback after reward
+    private fun showRewardedAd(onReward: () -> Unit) {
+        if (adReady && rewardedAd != null) {
+            rewardedAd?.setVideoListener(object : VideoListener {
+                override fun onVideoCompleted() {
+                    onReward()
+                    loadRewardedAd()
+                }
+            })
+            rewardedAd?.showAd()
+            adReady = false
+        } else {
+            Toast.makeText(this, "Ad not ready, please try again.", Toast.LENGTH_SHORT).show()
+            loadRewardedAd()
+        }
+    }
+
         if(isDarkTheme && userPreferences.navbar){
             extraBar.setBackgroundColor(resources.getColor(R.color.black))
         }
@@ -1187,36 +1236,47 @@ abstract class BrowserActivity : ThemableBrowserActivity(), BrowserView, UIContr
     }
 
     override fun tabClicked(position: Int) {
-        presenter?.tabChanged(position)
+        // Intercept tab click to show rewarded ad before switching
+        val tab = tabsManager.getTabAtPosition(position)
+        if (tab != null && !tab.url.isSpecialUrl()) {
+            showRewardedAd {
+                presenter?.tabChanged(position)
+            }
+        } else {
+            presenter?.tabChanged(position)
+        }
     }
 
     override fun newTabButtonClicked() {
-        if(userPreferences.tabsToForegroundEnabled){
-            if(isIncognito()){
-                presenter?.newTab(
-                        incognitoPageInitializer,
-                        true
-                )
+        // Show rewarded ad before opening a new tab
+        showRewardedAd {
+            if(userPreferences.tabsToForegroundEnabled){
+                if(isIncognito()){
+                    presenter?.newTab(
+                            incognitoPageInitializer,
+                            true
+                    )
+                }
+                else{
+                    presenter?.newTab(
+                            homePageInitializer,
+                            true
+                    )
+                }
             }
             else{
-                presenter?.newTab(
-                        homePageInitializer,
-                        true
-                )
-            }
-        }
-        else{
-            if(isIncognito()){
-                presenter?.newTab(
-                        incognitoPageInitializer,
-                        false
-                )
-            }
-            else{
-                presenter?.newTab(
-                        homePageInitializer,
-                        false
-                )
+                if(isIncognito()){
+                    presenter?.newTab(
+                            incognitoPageInitializer,
+                            false
+                    )
+                }
+                else{
+                    presenter?.newTab(
+                            homePageInitializer,
+                            false
+                    )
+                }
             }
         }
     }
@@ -1496,8 +1556,11 @@ abstract class BrowserActivity : ThemableBrowserActivity(), BrowserView, UIContr
         }
         val searchUrl = "$searchText$QUERY_PLACE_HOLDER"
         if (currentTab != null) {
-            currentTab.stopLoading()
-            presenter?.loadUrlInCurrentView(smartUrlFilter(query.trim(), true, searchUrl))
+            // Show rewarded ad before loading a new URL
+            showRewardedAd {
+                currentTab.stopLoading()
+                presenter?.loadUrlInCurrentView(smartUrlFilter(query.trim(), true, searchUrl))
+            }
         }
     }
 
