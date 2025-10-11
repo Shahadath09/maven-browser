@@ -1,1 +1,32 @@
-
+{
+    "name": "SmartCookieWeb-Android-Build",
+    "hostRequirements": {
+        "cpus": 4,
+        "memory": "16gb",
+        "storage": "32gb"
+    },
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+    "features": {
+        "ghcr.io/devcontainers/features/android-sdk:1": {
+            "versions": "latest",
+            "cmdline-tools-version": "latest",
+            "build-tools-version": "34.0.0",
+            "ndk-version": "26.1.10909125",
+            "cmake-version": "3.22.1",
+            "platforms-version": "android-34",
+            "system-images-version": "android-34;google_apis;x86_64"
+        },
+        "ghcr.io/devcontainers/features/java:1": {
+            "version": "17",
+            "jdkDistro": "ms"
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.vscode-xml"
+            ]
+        }
+    },
+    "postCreateCommand": "echo 'Android SDK and build environment are ready.'"
+}
