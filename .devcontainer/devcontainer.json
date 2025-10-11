@@ -10,11 +10,11 @@
         "ghcr.io/devcontainers/features/android-sdk:1": {
             "versions": "latest",
             "cmdline-tools-version": "latest",
-            "build-tools-version": "34.0.0",
-            "ndk-version": "26.1.10909125",
+            "build-tools-version": "35.0.0",
+            "ndk-version": "27.3.13750724",
             "cmake-version": "3.22.1",
-            "platforms-version": "android-34",
-            "system-images-version": "android-34;google_apis;x86_64"
+            "platforms-version": "android-36",
+            "system-images-version": "android-36;google_apis;x86_64"
         },
         "ghcr.io/devcontainers/features/java:1": {
             "version": "17",
@@ -28,5 +28,5 @@
             ]
         }
     },
-    "postCreateCommand": "echo 'Android SDK and build environment are ready.'"
+    "postCreateCommand": "echo 'Installing latest platform-tools...' && sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --install 'platform-tools' > /dev/null 2>&1 && echo 'Environment ready.'"
 }
